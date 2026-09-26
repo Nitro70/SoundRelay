@@ -17,9 +17,12 @@ public sealed class MainViewModel : ObservableObject
     private AudioTargetWindow? _selectedSource;
     private AudioDeviceInfo? _selectedOutput;
     private AudioDeviceInfo? _selectedMonitorDevice;
+    private AudioDeviceInfo? _selectedMicDevice;
     private double _volumePercent = 100;
+    private double _micLevelPercent = 100;
     private bool _includeProcessTree = true;
     private bool _monitorEnabled;
+    private bool _micEnabled;
     private bool _isRunning;
     private double _meterLevel;
     private string _statusText = "Idle. Pick an app and an output, then press Relay.";
@@ -38,8 +41,10 @@ public sealed class MainViewModel : ObservableObject
         _config = AppConfig.Load();
 
         _volumePercent = Math.Clamp(_config.Volume * 100.0, 0, 150);
+        _micLevelPercent = Math.Clamp(_config.MicLevel * 100.0, 0, 150);
         _includeProcessTree = _config.IncludeProcessTree;
         _monitorEnabled = _config.MonitorEnabled;
+        _micEnabled = _config.IncludeMicrophone;
 
         RefreshSourcesCommand = new RelayCommand(RefreshSources);
         RefreshDevicesCommand = new RelayCommand(RefreshDevices);
@@ -116,6 +121,50 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The monitor device picker is usable only when monitoring is on and idle.</summary>
     public bool CanEditMonitorDevice => IsIdle && _monitorEnabled;
 
+    public AudioDeviceInfo? SelectedMicDevice
+    {
+        get => _selectedMicDevice;
+        set
+        {
+            if (SetProperty(ref _selectedMicDevice, value))
+                _config.MicDeviceId = value?.Id;
+        }
+    }
+
+    /// <summary>Mix the user's real microphone into the output (their voice plus the app).</summary>
+    public bool IncludeMicrophone
+    {
+        get => _micEnabled;
+        set
+        {
+            if (SetProperty(ref _micEnabled, value))
+            {
+                _config.IncludeMicrophone = value;
+                OnPropertyChanged(nameof(CanEditMic));
+            }
+        }
+    }
+
+    /// <summary>The mic device picker and level are usable only when mic mixing is on and idle.</summary>
+    public bool CanEditMic => IsIdle && _micEnabled;
+
+    public double MicLevelPercent
+    {
+        get => _micLevelPercent;
+        set
+        {
+            if (SetProperty(ref _micLevelPercent, value))
+            {
+                OnPropertyChanged(nameof(MicLevelLabel));
+                _config.MicLevel = (float)(value / 100.0);
+                if (_router != null)
+                    _router.MicLevel = _config.MicLevel;
+            }
+        }
+    }
+
+    public string MicLevelLabel => $"{_micLevelPercent:0} %";
+
     public double VolumePercent
     {
         get => _volumePercent;
@@ -153,6 +202,7 @@ public sealed class MainViewModel : ObservableObject
                 OnPropertyChanged(nameof(IsIdle));
                 OnPropertyChanged(nameof(ToggleLabel));
                 OnPropertyChanged(nameof(CanEditMonitorDevice));
+                OnPropertyChanged(nameof(CanEditMic));
                 ToggleRelayCommand.RaiseCanExecuteChanged();
             }
         }
@@ -205,6 +255,7 @@ public sealed class MainViewModel : ObservableObject
         // so reading these ids after the clear would always see null.
         var previousId = _selectedOutput?.Id ?? _config.OutputDeviceId;
         var previousMonitorId = _selectedMonitorDevice?.Id ?? _config.MonitorDeviceId;
+        var previousMicId = _selectedMicDevice?.Id ?? _config.MicDeviceId;
 
         OutputDevices.Clear();
         foreach (var device in DeviceManager.GetRenderDevices())
@@ -224,6 +275,11 @@ public sealed class MainViewModel : ObservableObject
         Microphones.Clear();
         foreach (var mic in DeviceManager.GetCaptureDevices())
             Microphones.Add(mic);
+
+        SelectedMicDevice =
+            Microphones.FirstOrDefault(d => d.Id == previousMicId)
+            ?? Microphones.FirstOrDefault(d => d.IsDefault)
+            ?? Microphones.FirstOrDefault();
     }
 
     private void ToggleRelay()
@@ -248,11 +304,17 @@ public sealed class MainViewModel : ObservableObject
         if (_monitorEnabled && monitor?.Device != null && monitor.Id != output.Id)
             monitorDevice = monitor.Device;
 
+        MMDevice? micDevice = null;
+        var mic = _selectedMicDevice;
+        if (_micEnabled && mic?.Device != null)
+            micDevice = mic.Device;
+
         try
         {
-            _router = new AudioRouter(output.Device, monitorDevice, source.ProcessId, _includeProcessTree)
+            _router = new AudioRouter(output.Device, monitorDevice, micDevice, source.ProcessId, _includeProcessTree)
             {
                 Volume = (float)(_volumePercent / 100.0),
+                MicLevel = (float)(_micLevelPercent / 100.0),
             };
             _router.OutputLevel += OnOutputLevel;
             _router.Stopped += OnRouterStopped;
@@ -262,9 +324,10 @@ public sealed class MainViewModel : ObservableObject
             _config.Save();
 
             IsRunning = true;
+            string voice = micDevice != null ? $"{mic!.FriendlyName} + " : string.Empty;
             StatusText = monitorDevice != null
-                ? $"Relaying {source.ProcessName} into {output.FriendlyName}, monitoring on {monitor!.FriendlyName}."
-                : $"Relaying {source.ProcessName} into {output.FriendlyName}.";
+                ? $"Relaying {voice}{source.ProcessName} into {output.FriendlyName}, monitoring on {monitor!.FriendlyName}."
+                : $"Relaying {voice}{source.ProcessName} into {output.FriendlyName}.";
         }
         catch (Exception ex)
         {

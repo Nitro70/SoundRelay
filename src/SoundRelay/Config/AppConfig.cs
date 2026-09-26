@@ -15,6 +15,15 @@ public sealed class AppConfig
     /// <summary>Endpoint id of the capture device the user considers their mic.</summary>
     public string? PreferredMicId { get; set; }
 
+    /// <summary>Mix the user's real microphone into the output (voice + app audio).</summary>
+    public bool IncludeMicrophone { get; set; }
+
+    /// <summary>Endpoint id of the capture device to mix in as the user's voice.</summary>
+    public string? MicDeviceId { get; set; }
+
+    /// <summary>Level multiplier for the mixed-in microphone (1.0 = unity).</summary>
+    public float MicLevel { get; set; } = 1.0f;
+
     /// <summary>Also play the relay to a monitor device so the user can hear it.</summary>
     public bool MonitorEnabled { get; set; }
 

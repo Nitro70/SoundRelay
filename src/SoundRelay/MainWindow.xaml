@@ -59,6 +59,25 @@
                 </StackPanel>
             </Border>
 
+            <!-- Microphone -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="MY MICROPHONE" Style="{StaticResource SectionLabel}" />
+                    <CheckBox Content="Mix in my microphone (my voice + the app audio)"
+                              IsChecked="{Binding IncludeMicrophone}" IsEnabled="{Binding IsIdle}" />
+                    <ComboBox ItemsSource="{Binding Microphones}" SelectedItem="{Binding SelectedMicDevice}"
+                              DisplayMemberPath="Display" IsEnabled="{Binding CanEditMic}"
+                              Margin="0,10,0,0" />
+                    <Grid Margin="0,12,0,0">
+                        <TextBlock Text="MIC LEVEL" Style="{StaticResource SectionLabel}" />
+                        <TextBlock Text="{Binding MicLevelLabel}" HorizontalAlignment="Right"
+                                   Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12" />
+                    </Grid>
+                    <Slider Minimum="0" Maximum="150" Value="{Binding MicLevelPercent}"
+                            SmallChange="1" LargeChange="10" IsEnabled="{Binding IncludeMicrophone}" />
+                </StackPanel>
+            </Border>
+
             <!-- Output device -->
             <Border Style="{StaticResource Card}" Margin="0,0,0,14">
                 <StackPanel>
@@ -101,7 +120,7 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,14">
                 <StackPanel>
                     <Grid>
-                        <TextBlock Text="VOLUME" Style="{StaticResource SectionLabel}" />
+                        <TextBlock Text="APP VOLUME" Style="{StaticResource SectionLabel}" />
                         <TextBlock Text="{Binding VolumeLabel}" HorizontalAlignment="Right"
                                    Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12" />
                     </Grid>
@@ -124,10 +143,12 @@
                 <StackPanel>
                     <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}" LineHeight="19">
                         Windows does not let an ordinary app write sound onto a physical microphone's input.
-                        To have apps like Discord or OBS hear the relayed audio as a mic, point
+                        To have apps like Discord or OBS hear this as a mic, point
                         <Run Text="Send audio to" Foreground="{StaticResource AccentBrush}" /> at the playback
                         side of a virtual audio cable, then select that cable's recording side as your microphone
-                        in the other app. See the README for the full walkthrough.
+                        in the other app. Turn on
+                        <Run Text="Mix in my microphone" Foreground="{StaticResource AccentBrush}" /> so your own
+                        voice is carried through the cable alongside the app audio. See the README for the full walkthrough.
                     </TextBlock>
                     <TextBlock Text="ENABLED MICROPHONES" Style="{StaticResource SectionLabel}" Margin="0,14,0,6" />
                     <ItemsControl ItemsSource="{Binding Microphones}">

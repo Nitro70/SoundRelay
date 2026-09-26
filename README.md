@@ -22,9 +22,13 @@ where you tell it to.
   processes are filtered out.
 - **Route anywhere.** Sends the captured audio to any active playback device,
   with a volume control and a live output level meter.
-- **Fully configurable.** Every device, the source, the volume, and the
-  include-child-processes toggle are your choice and are saved between runs. No
-  device is baked in.
+- **Mix in your own voice.** Optionally capture your real microphone and mix it
+  with the app audio, each at its own level, so a single output carries both your
+  voice and the app. Point that at a virtual mic and one device in Discord or a
+  game carries everything.
+- **Fully configurable.** Every device, the source, the levels, the microphone
+  toggle, and the include-child-processes toggle are your choice and are saved
+  between runs. No device is baked in.
 
 ## About routing into a microphone
 
@@ -50,12 +54,24 @@ audio cable that you install separately:
 3. In Discord, OBS, your game, or wherever, set your **microphone** to the
    cable's **recording** side.
 
-Now that app hears whatever SoundRelay is relaying. If you also want to hear it
-yourself, most cables let you monitor, or you can run a second copy of the audio
-to your speakers.
+Now that app hears whatever SoundRelay is relaying.
 
-If you would rather not use a cable at all, SoundRelay is still useful on its own
-for piping one app's sound to a specific speaker or headset.
+### Carrying your own voice too
+
+If you set the cable as your microphone in Discord, that app now hears the cable
+instead of your real mic, so on its own the cable would carry only the app audio,
+not your voice. Turn on **Mix in my microphone** in SoundRelay and pick your real
+mic: SoundRelay then captures your voice, mixes it with the app audio at the
+levels you choose, and sends the combined stream into the cable. The cable becomes
+a single microphone that carries both, and you control the balance in the app.
+
+Note that routing your voice through the mix adds a small amount of latency to how
+others hear you. Keep the **Mic level** and **App volume** balanced to taste.
+
+If you also want to hear the app audio yourself, turn on **Also play it somewhere
+I can hear it** and pick your headphones. If you would rather not use a cable at
+all, SoundRelay is still useful for piping one app's sound to a specific speaker
+or headset.
 
 ## Requirements
 
@@ -79,9 +95,11 @@ The build produces `SoundRelay.exe` under
 1. Open the app whose audio you want (for example a video in your browser).
 2. Launch SoundRelay. Choose it under **Source app** (press **Refresh** if you
    opened it afterwards).
-3. Choose where the sound should go under **Send audio to**.
-4. Adjust **Volume** if you want, then press **Relay audio**.
-5. The **Output level** meter moves when audio is flowing. Press **Stop relay**
+3. To carry your voice too, turn on **Mix in my microphone** and pick your mic.
+4. Choose where the sound should go under **Send audio to** (a virtual cable to
+   feed a mic; see above).
+5. Adjust **App volume** and **Mic level**, then press **Relay audio**.
+6. The **Output level** meter moves when audio is flowing. Press **Stop relay**
    to end.
 
 ## Configuration

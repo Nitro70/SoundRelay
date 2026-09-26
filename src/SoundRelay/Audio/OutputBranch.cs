@@ -5,15 +5,17 @@ using NAudio.Wave.SampleProviders;
 namespace SoundRelay.Audio;
 
 /// <summary>
-/// One playback destination fed by the relay: its own buffer, volume, optional
-/// level meter, resampler, and WASAPI output. Several branches let the same
-/// captured audio go to more than one device at once (for example the mic
-/// bridge plus a monitor the user can hear).
+/// One playback destination fed by the relay: it mixes the captured application
+/// audio with (optionally) the user's microphone, applies per-source levels,
+/// resamples to the device, and plays it out. Several branches let the same mix
+/// go to more than one device at once (the virtual-mic output plus a monitor).
 /// </summary>
 internal sealed class OutputBranch : IDisposable
 {
-    private readonly BufferedWaveProvider _buffer;
-    private readonly VolumeSampleProvider _volume;
+    private readonly BufferedWaveProvider _appBuffer;
+    private readonly VolumeSampleProvider _appVolume;
+    private readonly BufferedWaveProvider? _micBuffer;
+    private readonly VolumeSampleProvider? _micVolume;
     private readonly MediaFoundationResampler _resampler;
     private readonly WasapiOut _output;
 
@@ -23,21 +25,37 @@ internal sealed class OutputBranch : IDisposable
     /// <summary>Raised if this branch's playback stops on its own.</summary>
     public event EventHandler<Exception?>? Stopped;
 
-    public OutputBranch(WaveFormat captureFormat, MMDevice device, float volume, bool withMeter)
+    public OutputBranch(WaveFormat captureFormat, MMDevice device, float appLevel, float micLevel, bool hasMic, bool withMeter)
     {
-        _buffer = new BufferedWaveProvider(captureFormat)
+        var mixFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+
+        _appBuffer = new BufferedWaveProvider(captureFormat)
         {
             BufferDuration = TimeSpan.FromSeconds(2),
             DiscardOnBufferOverflow = true,
         };
+        _appVolume = new VolumeSampleProvider(_appBuffer.ToSampleProvider()) { Volume = appLevel };
 
-        ISampleProvider tail = _buffer.ToSampleProvider();
-        _volume = new VolumeSampleProvider(tail) { Volume = volume };
-        tail = _volume;
+        // ReadFully keeps the mix producing a continuous stream even when one
+        // source is momentarily empty, so the output never underruns.
+        var mixer = new MixingSampleProvider(mixFormat) { ReadFully = true };
+        mixer.AddMixerInput((ISampleProvider)_appVolume);
 
+        if (hasMic)
+        {
+            _micBuffer = new BufferedWaveProvider(mixFormat)
+            {
+                BufferDuration = TimeSpan.FromSeconds(2),
+                DiscardOnBufferOverflow = true,
+            };
+            _micVolume = new VolumeSampleProvider(_micBuffer.ToSampleProvider()) { Volume = micLevel };
+            mixer.AddMixerInput((ISampleProvider)_micVolume);
+        }
+
+        ISampleProvider tail = mixer;
         if (withMeter)
         {
-            var metering = new MeteringSampleProvider(_volume);
+            var metering = new MeteringSampleProvider(mixer);
             metering.StreamVolume += (_, e) =>
             {
                 float peak = 0f;
@@ -48,8 +66,6 @@ internal sealed class OutputBranch : IDisposable
             tail = metering;
         }
 
-        // MMDevice.AudioClient activates a fresh client per access; copy the mix
-        // format out and dispose it rather than leaking one per branch.
         WaveFormat targetFormat;
         using (var probeClient = device.AudioClient)
             targetFormat = probeClient.MixFormat;
@@ -57,17 +73,28 @@ internal sealed class OutputBranch : IDisposable
         var waveProvider = new SampleToWaveProvider(tail);
         _resampler = new MediaFoundationResampler(waveProvider, targetFormat) { ResamplerQuality = 60 };
 
-        _output = new WasapiOut(device, AudioClientShareMode.Shared, true, 100);
+        _output = new WasapiOut(device, AudioClientShareMode.Shared, true, 60);
         _output.PlaybackStopped += OnPlaybackStopped;
         _output.Init(_resampler);
     }
 
-    public float Volume
+    public float AppVolume
     {
-        set => _volume.Volume = value;
+        set => _appVolume.Volume = value;
     }
 
-    public void AddSamples(byte[] buffer, int count) => _buffer.AddSamples(buffer, 0, count);
+    public float MicVolume
+    {
+        set
+        {
+            if (_micVolume != null)
+                _micVolume.Volume = value;
+        }
+    }
+
+    public void AddAppSamples(byte[] buffer, int count) => _appBuffer.AddSamples(buffer, 0, count);
+
+    public void AddMicSamples(byte[] buffer, int count) => _micBuffer?.AddSamples(buffer, 0, count);
 
     public void Play() => _output.Play();
 
