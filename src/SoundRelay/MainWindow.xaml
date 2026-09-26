@@ -89,7 +89,7 @@
                     <Slider Minimum="0" Maximum="150" Value="{Binding VolumePercent}"
                             SmallChange="1" LargeChange="10" />
                     <TextBlock Text="OUTPUT LEVEL" Style="{StaticResource SectionLabel}" Margin="0,14,0,6" />
-                    <ProgressBar Style="{StaticResource Meter}" Value="{Binding MeterLevel}" />
+                    <ProgressBar Style="{StaticResource Meter}" Value="{Binding MeterLevel, Mode=OneWay}" />
                 </StackPanel>
             </Border>
 

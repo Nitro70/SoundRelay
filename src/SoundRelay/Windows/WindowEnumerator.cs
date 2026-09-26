@@ -105,9 +105,13 @@ public static class WindowEnumerator
     {
         try
         {
-            IntPtr hIcon = SendMessage(hwnd, WM_GETICON, ICON_SMALL2, IntPtr.Zero);
+            // SendMessageTimeout, not SendMessage: a window whose process is not
+            // pumping messages (for example an app showing "Not Responding") would
+            // otherwise block this UI thread indefinitely. SMTO_ABORTIFHUNG returns
+            // at once for a hung window, and the 200 ms cap bounds any other stall.
+            IntPtr hIcon = QueryIcon(hwnd, ICON_SMALL2);
             if (hIcon == IntPtr.Zero)
-                hIcon = SendMessage(hwnd, WM_GETICON, ICON_BIG, IntPtr.Zero);
+                hIcon = QueryIcon(hwnd, ICON_BIG);
             if (hIcon == IntPtr.Zero)
                 hIcon = GetClassLongPtr(hwnd, GCLP_HICON);
             if (hIcon == IntPtr.Zero)
@@ -126,6 +130,16 @@ public static class WindowEnumerator
         }
     }
 
+    private static IntPtr QueryIcon(IntPtr hwnd, int iconType)
+    {
+        // Returns IntPtr.Zero on timeout or failure so the caller falls through.
+        return SendMessageTimeout(
+            hwnd, WM_GETICON, (IntPtr)iconType, IntPtr.Zero,
+            SMTO_ABORTIFHUNG | SMTO_BLOCK, 200, out IntPtr result) == IntPtr.Zero
+            ? IntPtr.Zero
+            : result;
+    }
+
     private const int GWL_EXSTYLE = -20;
     private const int WS_EX_TOOLWINDOW = 0x00000080;
     private const uint GW_OWNER = 4;
@@ -134,6 +148,8 @@ public static class WindowEnumerator
     private const int ICON_BIG = 1;
     private const int ICON_SMALL2 = 2;
     private const int GCLP_HICON = -14;
+    private const uint SMTO_BLOCK = 0x0001;
+    private const uint SMTO_ABORTIFHUNG = 0x0002;
 
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
 
@@ -158,8 +174,9 @@ public static class WindowEnumerator
     [DllImport("user32.dll")]
     private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr SendMessage(IntPtr hwnd, uint msg, int wParam, IntPtr lParam);
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SendMessageTimeout(
+        IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
 
     [DllImport("user32.dll", EntryPoint = "GetClassLongPtrW")]
     private static extern IntPtr GetClassLongPtr(IntPtr hwnd, int index);
