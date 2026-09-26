@@ -1,0 +1,137 @@
+<Window x:Class="SoundRelay.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SoundRelay" Height="740" Width="520"
+        MinHeight="660" MinWidth="470"
+        Background="{StaticResource BackgroundBrush}"
+        FontFamily="Segoe UI" WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,18">
+            <StackPanel Orientation="Horizontal">
+                <Border Width="10" Height="10" CornerRadius="5" Background="{StaticResource AccentBrush}"
+                        VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock Text="SoundRelay" FontSize="22" FontWeight="Bold" />
+            </StackPanel>
+            <TextBlock Text="Capture one app's audio and relay it to an output of your choice."
+                       Foreground="{StaticResource TextMutedBrush}" Margin="20,4,0,0" />
+        </StackPanel>
+
+        <!-- Body -->
+        <StackPanel Grid.Row="1">
+
+            <!-- Source app -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="SOURCE APP" Style="{StaticResource SectionLabel}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0" ItemsSource="{Binding Sources}"
+                                  SelectedItem="{Binding SelectedSource}" IsEnabled="{Binding IsIdle}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Source="{Binding Icon}" Width="18" Height="18"
+                                               Margin="0,0,9,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Display}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Grid.Column="1" Content="Refresh" Style="{StaticResource GhostButton}"
+                                Command="{Binding RefreshSourcesCommand}" IsEnabled="{Binding IsIdle}"
+                                Margin="10,0,0,0" />
+                    </Grid>
+                    <CheckBox Content="Include audio from child processes"
+                              IsChecked="{Binding IncludeProcessTree}" IsEnabled="{Binding IsIdle}"
+                              Margin="0,12,0,0" />
+                </StackPanel>
+            </Border>
+
+            <!-- Output device -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="SEND AUDIO TO" Style="{StaticResource SectionLabel}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0" ItemsSource="{Binding OutputDevices}"
+                                  SelectedItem="{Binding SelectedOutput}" DisplayMemberPath="Display"
+                                  IsEnabled="{Binding IsIdle}" />
+                        <Button Grid.Column="1" Content="Refresh" Style="{StaticResource GhostButton}"
+                                Command="{Binding RefreshDevicesCommand}" IsEnabled="{Binding IsIdle}"
+                                Margin="10,0,0,0" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Volume + meter -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                <StackPanel>
+                    <Grid>
+                        <TextBlock Text="VOLUME" Style="{StaticResource SectionLabel}" />
+                        <TextBlock Text="{Binding VolumeLabel}" HorizontalAlignment="Right"
+                                   Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="12" />
+                    </Grid>
+                    <Slider Minimum="0" Maximum="150" Value="{Binding VolumePercent}"
+                            SmallChange="1" LargeChange="10" />
+                    <TextBlock Text="OUTPUT LEVEL" Style="{StaticResource SectionLabel}" Margin="0,14,0,6" />
+                    <ProgressBar Style="{StaticResource Meter}" Value="{Binding MeterLevel}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Relay button -->
+            <Button Content="{Binding ToggleLabel}" Style="{StaticResource AccentButton}"
+                    Command="{Binding ToggleRelayCommand}" Height="52" Margin="0,4,0,0" />
+
+            <!-- Mic routing help -->
+            <CheckBox x:Name="HelpToggle" Content="How do I make this play through my microphone?"
+                      Foreground="{StaticResource AccentBrush}" Margin="2,16,0,0" />
+            <Border Style="{StaticResource Card}" Margin="0,10,0,0"
+                    Visibility="{Binding IsChecked, ElementName=HelpToggle, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}" LineHeight="19">
+                        Windows does not let an ordinary app write sound onto a physical microphone's input.
+                        To have apps like Discord or OBS hear the relayed audio as a mic, point
+                        <Run Text="Send audio to" Foreground="{StaticResource AccentBrush}" /> at the playback
+                        side of a virtual audio cable, then select that cable's recording side as your microphone
+                        in the other app. See the README for the full walkthrough.
+                    </TextBlock>
+                    <TextBlock Text="ENABLED MICROPHONES" Style="{StaticResource SectionLabel}" Margin="0,14,0,6" />
+                    <ItemsControl ItemsSource="{Binding Microphones}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,3">
+                                    <Border Width="6" Height="6" CornerRadius="3" Background="{StaticResource AccentBrush}"
+                                            VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding FriendlyName}" Foreground="{StaticResource TextBrush}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1" CornerRadius="7" Padding="12,9" Margin="0,16,0,0">
+            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextMutedBrush}"
+                       TextWrapping="Wrap" FontSize="12" />
+        </Border>
+    </Grid>
+</Window>
