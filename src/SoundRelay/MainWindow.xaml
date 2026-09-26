@@ -75,6 +75,25 @@
                                 Command="{Binding RefreshDevicesCommand}" IsEnabled="{Binding IsIdle}"
                                 Margin="10,0,0,0" />
                     </Grid>
+                    <TextBlock Text="{Binding OutputHint}" FontSize="11"
+                               TextWrapping="Wrap" Margin="2,8,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding OutputReachesMic}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <CheckBox Content="Also play it somewhere I can hear it"
+                              IsChecked="{Binding MonitorEnabled}" IsEnabled="{Binding IsIdle}"
+                              Margin="0,14,0,0" />
+                    <ComboBox ItemsSource="{Binding OutputDevices}" SelectedItem="{Binding SelectedMonitorDevice}"
+                              DisplayMemberPath="Display" IsEnabled="{Binding CanEditMonitorDevice}"
+                              Margin="0,8,0,0" />
                 </StackPanel>
             </Border>
 

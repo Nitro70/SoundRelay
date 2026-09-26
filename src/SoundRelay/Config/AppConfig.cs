@@ -15,6 +15,12 @@ public sealed class AppConfig
     /// <summary>Endpoint id of the capture device the user considers their mic.</summary>
     public string? PreferredMicId { get; set; }
 
+    /// <summary>Also play the relay to a monitor device so the user can hear it.</summary>
+    public bool MonitorEnabled { get; set; }
+
+    /// <summary>Endpoint id of the render device used for monitoring.</summary>
+    public string? MonitorDeviceId { get; set; }
+
     /// <summary>Process name last used as the source, matched on next launch.</summary>
     public string? LastSourceProcessName { get; set; }
 

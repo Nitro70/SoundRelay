@@ -39,6 +39,7 @@ public static class DeviceManager
                 FriendlyName = device.FriendlyName,
                 Flow = flow,
                 IsDefault = device.ID == defaultId,
+                IsVirtualCable = flow == DataFlow.Render && IsLikelyVirtualCable(device.FriendlyName),
                 Device = device,
             });
         }
@@ -47,5 +48,31 @@ public static class DeviceManager
             .OrderByDescending(d => d.IsDefault)
             .ThenBy(d => d.FriendlyName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    // Names of the common virtual audio cables whose recording side can act as a
+    // microphone. Matched case-insensitively as substrings, so it is a hint, not
+    // a guarantee: an unusually named cable may not be recognised.
+    private static readonly string[] CableNameMarkers =
+    {
+        "cable",           // VB-CABLE ("CABLE Input"), many Virtual Audio Cable lines
+        "vb-audio",        // VB-Audio family
+        "voicemeeter",     // VoiceMeeter virtual inputs
+        "voicemod",        // Voicemod Virtual Audio Device
+        "virtual audio",   // generic virtual audio devices
+        "virtual cable",   // generic virtual cables
+    };
+
+    public static bool IsLikelyVirtualCable(string friendlyName)
+    {
+        if (string.IsNullOrWhiteSpace(friendlyName))
+            return false;
+
+        foreach (string marker in CableNameMarkers)
+        {
+            if (friendlyName.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 }

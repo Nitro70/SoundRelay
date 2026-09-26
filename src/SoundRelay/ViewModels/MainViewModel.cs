@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
+using NAudio.CoreAudioApi;
 using SoundRelay.Audio;
 using SoundRelay.Config;
 using SoundRelay.Models;
@@ -15,8 +16,10 @@ public sealed class MainViewModel : ObservableObject
 
     private AudioTargetWindow? _selectedSource;
     private AudioDeviceInfo? _selectedOutput;
+    private AudioDeviceInfo? _selectedMonitorDevice;
     private double _volumePercent = 100;
     private bool _includeProcessTree = true;
+    private bool _monitorEnabled;
     private bool _isRunning;
     private double _meterLevel;
     private string _statusText = "Idle. Pick an app and an output, then press Relay.";
@@ -36,6 +39,7 @@ public sealed class MainViewModel : ObservableObject
 
         _volumePercent = Math.Clamp(_config.Volume * 100.0, 0, 150);
         _includeProcessTree = _config.IncludeProcessTree;
+        _monitorEnabled = _config.MonitorEnabled;
 
         RefreshSourcesCommand = new RelayCommand(RefreshSources);
         RefreshDevicesCommand = new RelayCommand(RefreshDevices);
@@ -63,10 +67,54 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _selectedOutput, value))
             {
                 _config.OutputDeviceId = value?.Id;
+                OnPropertyChanged(nameof(OutputHint));
+                OnPropertyChanged(nameof(OutputReachesMic));
                 ToggleRelayCommand.RaiseCanExecuteChanged();
             }
         }
     }
+
+    /// <summary>True when the chosen output is a virtual cable, so it can feed a mic.</summary>
+    public bool OutputReachesMic => _selectedOutput?.IsVirtualCable == true;
+
+    /// <summary>Plain-language guidance about where the chosen output actually goes.</summary>
+    public string OutputHint
+    {
+        get
+        {
+            if (_selectedOutput?.IsVirtualCable == true)
+                return "This is a virtual cable. In the app you want to feed, set its microphone to this cable's recording side.";
+            if (!OutputDevices.Any(d => d.IsVirtualCable))
+                return "No virtual cable detected. Audio can only reach a microphone through one. Install a virtual cable (for example VB-CABLE), then pick it here.";
+            return "This looks like a speaker or headset, so you will hear it and no microphone will receive it. Pick your virtual cable to feed a mic.";
+        }
+    }
+
+    public AudioDeviceInfo? SelectedMonitorDevice
+    {
+        get => _selectedMonitorDevice;
+        set
+        {
+            if (SetProperty(ref _selectedMonitorDevice, value))
+                _config.MonitorDeviceId = value?.Id;
+        }
+    }
+
+    public bool MonitorEnabled
+    {
+        get => _monitorEnabled;
+        set
+        {
+            if (SetProperty(ref _monitorEnabled, value))
+            {
+                _config.MonitorEnabled = value;
+                OnPropertyChanged(nameof(CanEditMonitorDevice));
+            }
+        }
+    }
+
+    /// <summary>The monitor device picker is usable only when monitoring is on and idle.</summary>
+    public bool CanEditMonitorDevice => IsIdle && _monitorEnabled;
 
     public double VolumePercent
     {
@@ -104,6 +152,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(IsIdle));
                 OnPropertyChanged(nameof(ToggleLabel));
+                OnPropertyChanged(nameof(CanEditMonitorDevice));
                 ToggleRelayCommand.RaiseCanExecuteChanged();
             }
         }
@@ -151,13 +200,24 @@ public sealed class MainViewModel : ObservableObject
 
     public void RefreshDevices()
     {
+        // Capture both selections BEFORE clearing. Clearing the shared ItemsSource
+        // makes each bound ComboBox write a null SelectedItem back to its source,
+        // so reading these ids after the clear would always see null.
         var previousId = _selectedOutput?.Id ?? _config.OutputDeviceId;
+        var previousMonitorId = _selectedMonitorDevice?.Id ?? _config.MonitorDeviceId;
+
         OutputDevices.Clear();
         foreach (var device in DeviceManager.GetRenderDevices())
             OutputDevices.Add(device);
 
         SelectedOutput =
             OutputDevices.FirstOrDefault(d => d.Id == previousId)
+            ?? OutputDevices.FirstOrDefault(d => d.IsDefault)
+            ?? OutputDevices.FirstOrDefault();
+
+        // The monitor picker draws from the same render-device list.
+        SelectedMonitorDevice =
+            OutputDevices.FirstOrDefault(d => d.Id == previousMonitorId)
             ?? OutputDevices.FirstOrDefault(d => d.IsDefault)
             ?? OutputDevices.FirstOrDefault();
 
@@ -181,9 +241,16 @@ public sealed class MainViewModel : ObservableObject
         if (source == null || output?.Device == null)
             return;
 
+        // Only mirror to a monitor when it is enabled and a genuinely different
+        // device is chosen; monitoring to the same device would just echo.
+        MMDevice? monitorDevice = null;
+        var monitor = _selectedMonitorDevice;
+        if (_monitorEnabled && monitor?.Device != null && monitor.Id != output.Id)
+            monitorDevice = monitor.Device;
+
         try
         {
-            _router = new AudioRouter(output.Device, source.ProcessId, _includeProcessTree)
+            _router = new AudioRouter(output.Device, monitorDevice, source.ProcessId, _includeProcessTree)
             {
                 Volume = (float)(_volumePercent / 100.0),
             };
@@ -195,7 +262,9 @@ public sealed class MainViewModel : ObservableObject
             _config.Save();
 
             IsRunning = true;
-            StatusText = $"Relaying {source.ProcessName} into {output.FriendlyName}.";
+            StatusText = monitorDevice != null
+                ? $"Relaying {source.ProcessName} into {output.FriendlyName}, monitoring on {monitor!.FriendlyName}."
+                : $"Relaying {source.ProcessName} into {output.FriendlyName}.";
         }
         catch (Exception ex)
         {

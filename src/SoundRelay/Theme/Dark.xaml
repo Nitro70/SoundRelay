@@ -18,6 +18,7 @@
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
     <SolidColorBrush x:Key="AccentDimBrush" Color="{StaticResource AccentDimColor}" />
     <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" />
+    <SolidColorBrush x:Key="WarnBrush" Color="#F0B429" />
     <SolidColorBrush x:Key="TextBrush" Color="#E6EDF2" />
     <SolidColorBrush x:Key="TextMutedBrush" Color="#8A97A3" />
     <SolidColorBrush x:Key="OnAccentBrush" Color="#06171B" />
