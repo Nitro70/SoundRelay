@@ -4,13 +4,17 @@ Capture the audio of a single running application and relay it, in real time, to
 an output device of your choice. Pick a visible app (Chrome, a media player, a
 game), pick where its sound should go, set the volume, and press one button.
 
-SoundRelay does not create a virtual microphone and it does not modify the apps
-it captures from. It uses the audio Windows already exposes and plays it back
-where you tell it to.
+SoundRelay is a capture-and-route engine: it installs no driver of its own and
+injects nothing into the apps it captures. To make its output act as a
+microphone in another app, you point it at a virtual audio cable that you install
+separately (a small, standard driver such as VB-CABLE). SoundRelay does not
+bundle or install that cable for you, it just feeds it. So yes, a virtual audio
+device is required for the microphone use case; see
+[Routing into a microphone](#about-routing-into-a-microphone) below.
 
 ![version](https://img.shields.io/badge/version-1.0.0-22d3ee)
 
-**[Download the latest standalone release](https://github.com/Nitro70/SoundRelay/releases/latest)** (a single Windows `.exe`, no install needed).
+**[Download the latest standalone release](https://github.com/Nitro70/SoundRelay/releases/latest)** (a single self-contained Windows `.exe`, no .NET install needed).
 
 ## What it does
 
@@ -51,10 +55,14 @@ that make app audio "come out of your mic" do it in one of two ways:
 2. They **hook other applications** and mix audio into what those apps read from
    the mic.
 
-SoundRelay deliberately does neither. It installs no driver and touches no other
-process. What it gives you is a clean capture-and-route engine. To make the
-relayed audio arrive as microphone input in another app, pair it with a virtual
-audio cable that you install separately:
+SoundRelay never does the second one: it injects into no other process. For the
+first one, it does not bundle or install a driver itself. Instead you install a
+standard virtual audio cable separately and SoundRelay feeds it. So a virtual
+audio device is involved, it is just a signed, standard one you install once and
+can see and remove, not something SoundRelay slips onto your system.
+
+To make the relayed audio arrive as microphone input in another app, pair
+SoundRelay with a virtual audio cable:
 
 1. Install a virtual audio cable of your choice (for example VB-CABLE). This
    creates a matched pair: a playback device and a recording device.
