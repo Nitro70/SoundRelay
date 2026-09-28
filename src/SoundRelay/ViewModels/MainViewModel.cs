@@ -23,6 +23,8 @@ public sealed class MainViewModel : ObservableObject
     private bool _includeProcessTree = true;
     private bool _monitorEnabled;
     private bool _micEnabled;
+    private bool _muteSource;
+    private int? _mutedPid;
     private bool _isRunning;
     private double _meterLevel;
     private string _statusText = "Idle. Pick an app and an output, then press Relay.";
@@ -45,6 +47,7 @@ public sealed class MainViewModel : ObservableObject
         _includeProcessTree = _config.IncludeProcessTree;
         _monitorEnabled = _config.MonitorEnabled;
         _micEnabled = _config.IncludeMicrophone;
+        _muteSource = _config.MuteSource;
 
         RefreshSourcesCommand = new RelayCommand(RefreshSources);
         RefreshDevicesCommand = new RelayCommand(RefreshDevices);
@@ -60,7 +63,42 @@ public sealed class MainViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _selectedSource, value))
+            {
                 ToggleRelayCommand.RaiseCanExecuteChanged();
+                ApplyMuteState();
+            }
+        }
+    }
+
+    /// <summary>Mute the selected source app in the Windows mixer so it is not heard locally.</summary>
+    public bool MuteSource
+    {
+        get => _muteSource;
+        set
+        {
+            if (SetProperty(ref _muteSource, value))
+            {
+                _config.MuteSource = value;
+                ApplyMuteState();
+            }
+        }
+    }
+
+    // Muting is driven purely by the checkbox and the selected source: whenever
+    // MuteSource is on, the chosen app is muted in the mixer; changing the source
+    // moves the mute; unchecking (or closing) restores it.
+    private void ApplyMuteState()
+    {
+        int? desired = _muteSource ? _selectedSource?.ProcessId : null;
+        if (_mutedPid != null && _mutedPid != desired)
+        {
+            SourceMuter.SetProcessMuted(_mutedPid.Value, false);
+            _mutedPid = null;
+        }
+        if (desired != null && _mutedPid == null)
+        {
+            SourceMuter.SetProcessMuted(desired.Value, true);
+            _mutedPid = desired;
         }
     }
 
@@ -224,6 +262,15 @@ public sealed class MainViewModel : ObservableObject
         private set => SetProperty(ref _statusText, value);
     }
 
+    private string _diagnosticsText = string.Empty;
+
+    /// <summary>Live buffered-latency readout shown while relaying.</summary>
+    public string DiagnosticsText
+    {
+        get => _diagnosticsText;
+        private set => SetProperty(ref _diagnosticsText, value);
+    }
+
     private bool CanToggle =>
         _isRunning || (_selectedSource != null && _selectedOutput?.Device != null);
 
@@ -318,6 +365,7 @@ public sealed class MainViewModel : ObservableObject
             };
             _router.OutputLevel += OnOutputLevel;
             _router.Stopped += OnRouterStopped;
+            _router.Diagnostics += OnDiagnostics;
             _router.Start();
 
             _config.LastSourceProcessName = source.ProcessName;
@@ -352,6 +400,11 @@ public sealed class MainViewModel : ObservableObject
         _dispatcher.BeginInvoke(() => MeterLevel = clamped);
     }
 
+    private void OnDiagnostics(object? sender, string text)
+    {
+        _dispatcher.BeginInvoke(() => DiagnosticsText = text);
+    }
+
     private void OnRouterStopped(object? sender, Exception? error)
     {
         _dispatcher.BeginInvoke(() =>
@@ -371,8 +424,10 @@ public sealed class MainViewModel : ObservableObject
             return;
         _router.OutputLevel -= OnOutputLevel;
         _router.Stopped -= OnRouterStopped;
+        _router.Diagnostics -= OnDiagnostics;
         _router.Dispose();
         _router = null;
+        DiagnosticsText = string.Empty;
     }
 
     private static string Flatten(Exception ex)
@@ -389,6 +444,12 @@ public sealed class MainViewModel : ObservableObject
 
     public void OnClosing()
     {
+        // Never leave the user's app muted after SoundRelay closes.
+        if (_mutedPid != null)
+        {
+            SourceMuter.SetProcessMuted(_mutedPid.Value, false);
+            _mutedPid = null;
+        }
         TeardownRouter();
         _config.Save();
     }

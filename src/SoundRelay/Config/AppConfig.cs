@@ -39,6 +39,9 @@ public sealed class AppConfig
     /// <summary>Include audio from the target's child processes as well.</summary>
     public bool IncludeProcessTree { get; set; } = true;
 
+    /// <summary>Mute the source app in the Windows mixer (user stops hearing it locally).</summary>
+    public bool MuteSource { get; set; }
+
     private static string ConfigDirectory =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SoundRelay");
 

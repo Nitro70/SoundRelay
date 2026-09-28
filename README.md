@@ -26,9 +26,15 @@ where you tell it to.
   with the app audio, each at its own level, so a single output carries both your
   voice and the app. Point that at a virtual mic and one device in Discord or a
   game carries everything.
+- **Mute the source locally.** A checkbox mutes the captured app in the Windows
+  mixer so you stop hearing it on your own speakers, while SoundRelay keeps
+  capturing and relaying it.
+- **Low latency.** Audio is fed to the output device directly, with no resampling
+  when the device already runs 48 kHz stereo (most do). A small live readout under
+  the level meter shows the current buffered delay.
 - **Fully configurable.** Every device, the source, the levels, the microphone
-  toggle, and the include-child-processes toggle are your choice and are saved
-  between runs. No device is baked in.
+  toggle, the mute toggle, and the include-child-processes toggle are your choice
+  and are saved between runs. No device is baked in.
 
 ## About routing into a microphone
 

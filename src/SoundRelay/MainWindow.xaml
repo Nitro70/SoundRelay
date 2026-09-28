@@ -1,8 +1,8 @@
 <Window x:Class="SoundRelay.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SoundRelay" Height="740" Width="520"
-        MinHeight="660" MinWidth="470"
+        Title="SoundRelay" Height="880" Width="520"
+        MinHeight="560" MinWidth="470"
         Background="{StaticResource BackgroundBrush}"
         FontFamily="Segoe UI" WindowStartupLocation="CenterScreen">
 
@@ -25,7 +25,8 @@
         </StackPanel>
 
         <!-- Body -->
-        <StackPanel Grid.Row="1">
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,0,6,0">
 
             <!-- Source app -->
             <Border Style="{StaticResource Card}" Margin="0,0,0,14">
@@ -56,6 +57,8 @@
                     <CheckBox Content="Include audio from child processes"
                               IsChecked="{Binding IncludeProcessTree}" IsEnabled="{Binding IsIdle}"
                               Margin="0,12,0,0" />
+                    <CheckBox Content="Mute this app on my speakers (SoundRelay still captures it)"
+                              IsChecked="{Binding MuteSource}" Margin="0,10,0,0" />
                 </StackPanel>
             </Border>
 
@@ -128,6 +131,8 @@
                             SmallChange="1" LargeChange="10" />
                     <TextBlock Text="OUTPUT LEVEL" Style="{StaticResource SectionLabel}" Margin="0,14,0,6" />
                     <ProgressBar Style="{StaticResource Meter}" Value="{Binding MeterLevel, Mode=OneWay}" />
+                    <TextBlock Text="{Binding DiagnosticsText}" Foreground="{StaticResource TextMutedBrush}"
+                               FontSize="11" FontFamily="Consolas" Margin="0,8,0,0" />
                 </StackPanel>
             </Border>
 
@@ -166,6 +171,7 @@
             </Border>
 
         </StackPanel>
+        </ScrollViewer>
 
         <!-- Status bar -->
         <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrush}"

@@ -21,6 +21,9 @@ public sealed class MicCaptureSource : IDisposable
 
     public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
 
+    /// <summary>How much captured mic audio is queued waiting for the pump, in ms.</summary>
+    public double BufferedMs => _srcBuffer?.BufferedDuration.TotalMilliseconds ?? 0;
+
     /// <summary>Converted microphone audio (48 kHz float stereo), on the pump thread.</summary>
     public event EventHandler<WaveInEventArgs>? DataAvailable;
 

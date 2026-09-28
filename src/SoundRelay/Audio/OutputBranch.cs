@@ -16,7 +16,7 @@ internal sealed class OutputBranch : IDisposable
     private readonly VolumeSampleProvider _appVolume;
     private readonly BufferedWaveProvider? _micBuffer;
     private readonly VolumeSampleProvider? _micVolume;
-    private readonly MediaFoundationResampler _resampler;
+    private readonly MediaFoundationResampler? _resampler;
     private readonly WasapiOut _output;
 
     /// <summary>Peak output level (0..1+), raised only when this branch meters.</summary>
@@ -29,6 +29,8 @@ internal sealed class OutputBranch : IDisposable
     {
         var mixFormat = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
 
+        // Generous buffers so playback is always continuous (no overflow drops)
+        // while we measure where latency actually comes from.
         _appBuffer = new BufferedWaveProvider(captureFormat)
         {
             BufferDuration = TimeSpan.FromSeconds(2),
@@ -66,16 +68,26 @@ internal sealed class OutputBranch : IDisposable
             tail = metering;
         }
 
-        WaveFormat targetFormat;
+        WaveFormat deviceMix;
         using (var probeClient = device.AudioClient)
-            targetFormat = probeClient.MixFormat;
+            deviceMix = probeClient.MixFormat;
 
-        var waveProvider = new SampleToWaveProvider(tail);
-        _resampler = new MediaFoundationResampler(waveProvider, targetFormat) { ResamplerQuality = 60 };
+        var waveProvider = new SampleToWaveProvider(tail); // 48 kHz float stereo
 
-        _output = new WasapiOut(device, AudioClientShareMode.Shared, true, 60);
+        // MediaFoundation resampling buffers ~1 second internally, and it is
+        // pointless when the device already runs 48 kHz stereo (every endpoint
+        // here does). Feed WASAPI directly then, and only resample when a device
+        // genuinely differs.
+        IWaveProvider outputProvider = waveProvider;
+        if (deviceMix.SampleRate != 48000 || deviceMix.Channels != 2)
+        {
+            _resampler = new MediaFoundationResampler(waveProvider, deviceMix) { ResamplerQuality = 60 };
+            outputProvider = _resampler;
+        }
+
+        _output = new WasapiOut(device, AudioClientShareMode.Shared, true, 50);
         _output.PlaybackStopped += OnPlaybackStopped;
-        _output.Init(_resampler);
+        _output.Init(outputProvider);
     }
 
     public float AppVolume
@@ -91,6 +103,10 @@ internal sealed class OutputBranch : IDisposable
                 _micVolume.Volume = value;
         }
     }
+
+    /// <summary>How much audio is currently queued in this branch's buffers, in ms.</summary>
+    public double BufferedMs =>
+        Math.Max(_appBuffer.BufferedDuration.TotalMilliseconds, _micBuffer?.BufferedDuration.TotalMilliseconds ?? 0);
 
     public void AddAppSamples(byte[] buffer, int count) => _appBuffer.AddSamples(buffer, 0, count);
 
@@ -110,6 +126,6 @@ internal sealed class OutputBranch : IDisposable
     {
         _output.PlaybackStopped -= OnPlaybackStopped;
         try { _output.Dispose(); } catch { }
-        try { _resampler.Dispose(); } catch { }
+        try { _resampler?.Dispose(); } catch { }
     }
 }

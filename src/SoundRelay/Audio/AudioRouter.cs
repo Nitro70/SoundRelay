@@ -42,6 +42,9 @@ public sealed class AudioRouter : IDisposable
     /// <summary>Raised when the relay stops on its own, carrying any error.</summary>
     public event EventHandler<Exception?>? Stopped;
 
+    /// <summary>Live buffered-latency text, for diagnosing where delay accumulates.</summary>
+    public event EventHandler<string>? Diagnostics;
+
     public AudioRouter(
         MMDevice outputDevice,
         MMDevice? monitorDevice,
@@ -175,7 +178,18 @@ public sealed class AudioRouter : IDisposable
         // relaying, the voice mix just goes quiet until the mic returns.
     }
 
-    private void OnBranchLevel(object? sender, float peak) => OutputLevel?.Invoke(this, peak);
+    private void OnBranchLevel(object? sender, float peak)
+    {
+        OutputLevel?.Invoke(this, peak);
+
+        var main = _mainBranch;
+        if (main != null)
+        {
+            double outMs = main.BufferedMs;
+            double micMs = _micSource?.BufferedMs ?? 0;
+            Diagnostics?.Invoke(this, $"buffered: mic-in {micMs:0} ms  |  output {outMs:0} ms");
+        }
+    }
 
     private void OnBranchStopped(object? sender, Exception? error)
     {
