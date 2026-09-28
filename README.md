@@ -8,7 +8,9 @@ SoundRelay does not create a virtual microphone and it does not modify the apps
 it captures from. It uses the audio Windows already exposes and plays it back
 where you tell it to.
 
-![status: early](https://img.shields.io/badge/status-v0.1-22d3ee)
+![version](https://img.shields.io/badge/version-1.0.0-22d3ee)
+
+**[Download the latest standalone release](https://github.com/Nitro70/SoundRelay/releases/latest)** (a single Windows `.exe`, no install needed).
 
 ## What it does
 

@@ -11,7 +11,7 @@
     <AssemblyName>SoundRelay</AssemblyName>
     <RootNamespace>SoundRelay</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
     <Product>SoundRelay</Product>
     <Description>Capture the audio of a chosen application and relay it to an output device of your choice.</Description>
   </PropertyGroup>
